@@ -35,8 +35,18 @@
           <input id="autoMinute" type="number" min="0" max="59" value="0" style="width:60px" />
         </label>
         <label><input type="checkbox" id="autoEnabled" checked /> Enabled</label>
-        <button id="saveAutoStartBtn">Save Time</button>
+        <button id="saveAutoStartBtn">Save</button>
         <span id="autoStartStatus" class="muted"></span>
+      </div>
+      <div class="row" id="autoDaysRow">
+        <span class="muted">Runs on:</span>
+        <label><input type="checkbox" class="autoDay" value="1" checked /> Mon</label>
+        <label><input type="checkbox" class="autoDay" value="2" checked /> Tue</label>
+        <label><input type="checkbox" class="autoDay" value="3" checked /> Wed</label>
+        <label><input type="checkbox" class="autoDay" value="4" checked /> Thu</label>
+        <label><input type="checkbox" class="autoDay" value="5" checked /> Fri</label>
+        <label><input type="checkbox" class="autoDay" value="6" checked /> Sat</label>
+        <label><input type="checkbox" class="autoDay" value="0" /> Sun</label>
       </div>
 
       <hr style="border-color:#334155;margin:14px 0" />

@@ -40,7 +40,8 @@ const DEFAULTS = {
     autoStart: {
       enabled: true,
       hour: 10,     // 24h, local to timezoneOffsetMinutes below
-      minute: 0
+      minute: 0,
+      daysOfWeek: [1, 2, 3, 4, 5, 6] // 0=Sun...6=Sat; default Monday-Saturday, Sunday off
     },
     timezoneOffsetMinutes: 330, // IST (UTC+5:30) — change if deploying for another timezone
     lastAutoRunDate: '',        // 'YYYY-MM-DD' (in the above timezone) of the last auto-start, prevents re-triggering same day

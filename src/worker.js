@@ -4,25 +4,32 @@ const { processOne } = require('./automation');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let ticking = false;
 
-// Returns { dateStr: 'YYYY-MM-DD', hour, minute } for "now" shifted into the
-// configured timezone (default IST, UTC+5:30), without pulling in a date
-// library — good enough since we only need date/hour/minute granularity.
+// Returns { dateStr: 'YYYY-MM-DD', hour, minute, dayOfWeek } for "now"
+// shifted into the configured timezone (default IST, UTC+5:30), without
+// pulling in a date library — good enough since we only need this much
+// granularity. dayOfWeek: 0=Sunday ... 6=Saturday.
 function localNow(offsetMinutes) {
   const shifted = new Date(Date.now() + offsetMinutes * 60000);
   const dateStr = shifted.toISOString().slice(0, 10); // YYYY-MM-DD (of the shifted instant, read as UTC fields)
-  return { dateStr, hour: shifted.getUTCHours(), minute: shifted.getUTCMinutes() };
+  return { dateStr, hour: shifted.getUTCHours(), minute: shifted.getUTCMinutes(), dayOfWeek: shifted.getUTCDay() };
 }
 
-// If it's on/after the configured auto-start time and we haven't already
-// auto-started today, copy the saved client list into the queue and kick
-// off a run. Runs once per day; does nothing if already running, already
-// triggered today, or the saved list is empty.
+// If it's on/after the configured auto-start time, today is one of the
+// allowed days, and we haven't already auto-started today, copy the saved
+// client list into the queue and kick off a run. Runs once per day; does
+// nothing if already running, already triggered today, today isn't an
+// allowed day, or the saved list is empty.
 function checkAutoStart() {
   const settings = db.get('settings').value();
   const auto = settings.autoStart || {};
   if (!auto.enabled) return;
 
-  const { dateStr, hour, minute } = localNow(settings.timezoneOffsetMinutes ?? 330);
+  const { dateStr, hour, minute, dayOfWeek } = localNow(settings.timezoneOffsetMinutes ?? 330);
+
+  // Default: Monday(1) through Saturday(6), i.e. every day except Sunday(0).
+  const daysOfWeek = Array.isArray(auto.daysOfWeek) && auto.daysOfWeek.length ? auto.daysOfWeek : [1, 2, 3, 4, 5, 6];
+  if (!daysOfWeek.includes(dayOfWeek)) return; // not a scheduled day (e.g. Sunday) — skip entirely, no log spam
+
   const afterStartTime = hour > auto.hour || (hour === auto.hour && minute >= auto.minute);
   if (!afterStartTime) return;
   if (settings.lastAutoRunDate === dateStr) return; // already ran today

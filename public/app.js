@@ -118,10 +118,12 @@ async function refreshSettings() {
   document.getElementById('authStatus').innerText =
     `Password set: ${s.hasPassword ? 'yes' : 'no'} | Cookies set: ${s.hasCookies ? 'yes' : 'no'}`;
 
-  const auto = s.autoStart || { enabled: true, hour: 10, minute: 0 };
+  const auto = s.autoStart || { enabled: true, hour: 10, minute: 0, daysOfWeek: [1, 2, 3, 4, 5, 6] };
   document.getElementById('autoHour').value = auto.hour;
   document.getElementById('autoMinute').value = auto.minute;
   document.getElementById('autoEnabled').checked = !!auto.enabled;
+  const activeDays = new Set((auto.daysOfWeek && auto.daysOfWeek.length ? auto.daysOfWeek : [1, 2, 3, 4, 5, 6]).map(String));
+  document.querySelectorAll('.autoDay').forEach((cb) => { cb.checked = activeDays.has(cb.value); });
   document.getElementById('autoStartStatus').innerText = s.lastAutoRunDate
     ? `Last auto-run: ${s.lastAutoRunDate}`
     : 'Not run yet today.';
@@ -137,13 +139,16 @@ async function refreshSettings() {
 }
 
 document.getElementById('saveAutoStartBtn').onclick = async () => {
+  const daysOfWeek = Array.from(document.querySelectorAll('.autoDay:checked')).map((cb) => parseInt(cb.value, 10));
+  if (!daysOfWeek.length) { alert('Select at least one day.'); return; }
   await api('/settings', {
     method: 'POST',
     body: JSON.stringify({
       autoStart: {
         enabled: document.getElementById('autoEnabled').checked,
         hour: document.getElementById('autoHour').value,
-        minute: document.getElementById('autoMinute').value
+        minute: document.getElementById('autoMinute').value,
+        daysOfWeek
       }
     })
   });

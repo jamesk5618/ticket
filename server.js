@@ -186,7 +186,14 @@ app.post('/api/settings', (req, res) => {
     const enabled = !!autoStart.enabled;
     const hour = Math.min(23, Math.max(0, parseInt(autoStart.hour, 10) || 0));
     const minute = Math.min(59, Math.max(0, parseInt(autoStart.minute, 10) || 0));
-    db.set('settings.autoStart', { enabled, hour, minute }).write();
+    let daysOfWeek = [1, 2, 3, 4, 5, 6];
+    if (Array.isArray(autoStart.daysOfWeek)) {
+      const valid = autoStart.daysOfWeek
+        .map((d) => parseInt(d, 10))
+        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+      if (valid.length) daysOfWeek = [...new Set(valid)].sort();
+    }
+    db.set('settings.autoStart', { enabled, hour, minute, daysOfWeek }).write();
   }
   if (timezoneOffsetMinutes !== undefined) {
     db.set('settings.timezoneOffsetMinutes', parseInt(timezoneOffsetMinutes, 10) || 330).write();
