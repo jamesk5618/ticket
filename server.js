@@ -3,7 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const xlsx = require('xlsx');
 const path = require('path');
-const { db, log } = require('./src/db');
+const { db, log, ready, usingSupabase } = require('./src/db');
 const { startWorkerLoop } = require('./src/worker');
 const { v4: uuidv4 } = require('uuid');
 
@@ -168,6 +168,7 @@ app.get('/api/settings', (req, res) => {
   s.hasPassword = !!db.get('settings.password').value();
   s.hasCookies = !!db.get('settings.cookiesJson').value();
   delete s.cookiesJson;
+  s.storageBackend = usingSupabase ? 'supabase' : 'local-file';
   res.json(s);
 });
 
@@ -195,7 +196,10 @@ app.post('/api/settings', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  log('info', `Dashboard server listening on port ${PORT}`);
-  startWorkerLoop();
-});
+(async () => {
+  await ready; // wait for saved data (queue, saved clients, cookies, settings) to load before serving requests
+  app.listen(PORT, () => {
+    log('info', `Dashboard server listening on port ${PORT}`);
+    startWorkerLoop();
+  });
+})();

@@ -30,6 +30,10 @@ services:
         sync: false
       - key: EAZY_PASSWORD
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
       - key: DEFAULT_GAP_MINUTES
         value: 5
       - key: DATA_DIR

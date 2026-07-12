@@ -129,6 +129,11 @@ async function refreshSettings() {
   const subjectSelect = document.getElementById('cSubject');
   const subjects = Object.keys(s.subjectMapping || {});
   subjectSelect.innerHTML = subjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('');
+
+  const storageBadge = document.getElementById('storageBadge');
+  storageBadge.innerText = s.storageBackend === 'supabase'
+    ? '💾 Storage: Supabase (survives redeploys)'
+    : '⚠️ Storage: local file (may reset on redeploy — set SUPABASE_URL/SUPABASE_SERVICE_KEY)';
 }
 
 document.getElementById('saveAutoStartBtn').onclick = async () => {
