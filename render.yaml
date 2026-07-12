@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: eazybusiness-ticket-automation
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    disk:
+      name: automation-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: BASE_URL
+        value: https://help.eazybusiness.in
+      - key: TICKET_CREATE_URL
+        value: https://help.eazybusiness.in/tickets/create
+      - key: LOGIN_URL
+        value: https://help.eazybusiness.in/login
+      - key: LOGIN_USERNAME_SELECTOR
+        value: "#username"
+      - key: LOGIN_PASSWORD_SELECTOR
+        value: "#password"
+      - key: LOGIN_SUBMIT_SELECTOR
+        value: "button[type=submit]"
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: EAZY_USERNAME
+        sync: false
+      - key: EAZY_PASSWORD
+        sync: false
+      - key: DEFAULT_GAP_MINUTES
+        value: 5
+      - key: DATA_DIR
+        value: /data

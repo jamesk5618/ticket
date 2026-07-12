@@ -1,0 +1,65 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.hidden { display: none !important; }
+.screen { min-height: 100vh; }
+#loginScreen { display: flex; align-items: center; justify-content: center; }
+.card {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 16px auto;
+  max-width: 900px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+header {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 10px 0;
+}
+h1 { font-size: 20px; margin: 0; }
+h2 { margin-top: 0; font-size: 16px; color: #38bdf8; }
+input, textarea, button {
+  font-family: inherit;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 10px;
+}
+input[type="text"], input[type="password"], input[type="number"], textarea { width: 100%; margin: 4px 0; }
+textarea { width: 100%; font-family: monospace; }
+button {
+  cursor: pointer;
+  background: #334155;
+  border: none;
+  font-weight: 600;
+  padding: 8px 16px;
+  margin-right: 8px;
+}
+button:hover { filter: brightness(1.15); }
+button.green { background: #16a34a; }
+button.orange { background: #ea580c; }
+button.red { background: #dc2626; }
+.row { margin: 10px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.muted { color: #94a3b8; font-size: 13px; }
+.error { color: #f87171; }
+.badge { background: #334155; padding: 6px 12px; border-radius: 20px; font-size: 13px; }
+.badge.running { background: #16a34a; }
+.badge.stopped { background: #64748b; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; font-weight: 600; }
+.log-info { color: #38bdf8; }
+.log-success { color: #4ade80; }
+.log-error { color: #f87171; }
+.log-warn { color: #fbbf24; }
+.log-line { padding: 4px 0; border-bottom: 1px solid #1e293b; font-family: monospace; font-size: 12px; }

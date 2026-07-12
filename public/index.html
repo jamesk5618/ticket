@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>EazyBusiness Ticket Automation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div id="loginScreen" class="screen">
+  <div class="card">
+    <h2>Dashboard Login</h2>
+    <input id="pwInput" type="password" placeholder="Dashboard password" />
+    <button id="pwBtn">Enter</button>
+    <p id="pwError" class="error"></p>
+  </div>
+</div>
+
+<div id="app" class="screen hidden">
+  <header>
+    <h1>🎫 EazyBusiness Ticket Automation</h1>
+    <span id="statusBadge" class="badge">checking…</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1. Upload Employee List</h2>
+      <p class="muted">CSV or Excel (.xlsx). Needs a column for Employee Name; optional Company/Brand, Phone, Email, Subject.</p>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+      <div id="uploadResult" class="muted"></div>
+    </section>
+
+    <section class="card">
+      <h2>2. Queue</h2>
+      <div class="row">
+        <label>Gap between tickets (minutes): <input id="gapMinutes" type="number" min="1" value="5" style="width:70px" /></label>
+        <button id="saveGapBtn">Save</button>
+      </div>
+      <div class="row">
+        <button id="startBtn" class="green">Start</button>
+        <button id="stopBtn" class="orange">Stop</button>
+        <button id="clearBtn" class="red">Clear Queue</button>
+      </div>
+      <p><strong id="queueCount">0</strong> employees pending. Next run: <span id="nextRun">-</span></p>
+      <div id="queueTableWrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>3. Live Logs</h2>
+      <div class="row">
+        <button id="refreshLogsBtn">Refresh</button>
+        <button id="clearLogsBtn" class="red">Clear Logs</button>
+        <label><input type="checkbox" id="autoRefresh" checked /> Auto-refresh (5s)</label>
+      </div>
+      <div id="logsWrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>4. Login Settings</h2>
+      <p class="muted">The automation runs headless on the server (no visible browser), so it authenticates using session cookies exported from your own browser. Paste fresh cookies here whenever your session expires. Username/password is a fallback for sites without 2FA — leave it set as a backup.</p>
+      <div class="row"><label>Username: <input id="username" type="text" /></label></div>
+      <div class="row"><label>Password: <input id="password" type="password" placeholder="(unchanged unless filled)" /></label></div>
+      <div class="row"><label>Session Cookies (JSON array, exported from browser devtools):</label></div>
+      <textarea id="cookiesJson" rows="4" placeholder='[{"name":"session","value":"...","domain":"help.eazybusiness.in","path":"/"}]'></textarea>
+      <button id="saveAuthBtn">Save Login Settings</button>
+      <div id="authStatus" class="muted"></div>
+    </section>
+  </main>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

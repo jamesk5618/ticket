@@ -1,0 +1,23 @@
+{
+  "name": "eazybusiness-ticket-automation",
+  "version": "1.0.0",
+  "description": "24/7 server-side ticket automation with dashboard for help.eazybusiness.in",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "login": "node src/manual-login.js",
+    "postinstall": "npx playwright install --with-deps chromium"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.46.0",
+    "lowdb": "^1.0.0",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
