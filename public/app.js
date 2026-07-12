@@ -37,6 +37,7 @@ function boot() {
   refreshQueue();
   refreshLogs();
   refreshSettings();
+  refreshClients();
   setInterval(() => { if (document.getElementById('autoRefresh').checked) { refreshQueue(); refreshLogs(); } }, 5000);
 }
 
@@ -116,6 +117,82 @@ async function refreshSettings() {
   document.getElementById('username').value = s.username || '';
   document.getElementById('authStatus').innerText =
     `Password set: ${s.hasPassword ? 'yes' : 'no'} | Cookies set: ${s.hasCookies ? 'yes' : 'no'}`;
+
+  const auto = s.autoStart || { enabled: true, hour: 10, minute: 0 };
+  document.getElementById('autoHour').value = auto.hour;
+  document.getElementById('autoMinute').value = auto.minute;
+  document.getElementById('autoEnabled').checked = !!auto.enabled;
+  document.getElementById('autoStartStatus').innerText = s.lastAutoRunDate
+    ? `Last auto-run: ${s.lastAutoRunDate}`
+    : 'Not run yet today.';
+
+  const subjectSelect = document.getElementById('cSubject');
+  const subjects = Object.keys(s.subjectMapping || {});
+  subjectSelect.innerHTML = subjects.map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join('');
+}
+
+document.getElementById('saveAutoStartBtn').onclick = async () => {
+  await api('/settings', {
+    method: 'POST',
+    body: JSON.stringify({
+      autoStart: {
+        enabled: document.getElementById('autoEnabled').checked,
+        hour: document.getElementById('autoHour').value,
+        minute: document.getElementById('autoMinute').value
+      }
+    })
+  });
+  refreshSettings();
+};
+
+/* ---------- Saved Clients (daily list) ---------- */
+
+document.getElementById('addClientBtn').onclick = async () => {
+  const EmployeeName = document.getElementById('cName').value.trim();
+  if (!EmployeeName) { alert('Employee Name is required.'); return; }
+  const body = {
+    EmployeeName,
+    Company: document.getElementById('cCompany').value.trim(),
+    Phone: document.getElementById('cPhone').value.trim(),
+    Email: document.getElementById('cEmail').value.trim(),
+    Subject: document.getElementById('cSubject').value
+  };
+  const r = await api('/clients', { method: 'POST', body: JSON.stringify(body) });
+  if (r.error) { alert(r.error); return; }
+  ['cName', 'cCompany', 'cPhone', 'cEmail'].forEach((id) => (document.getElementById(id).value = ''));
+  refreshClients();
+};
+
+document.getElementById('runNowBtn').onclick = async () => {
+  const r = await api('/clients/run-now', { method: 'POST' });
+  if (r.error) { alert(r.error); return; }
+  refreshQueue();
+};
+
+async function deleteClient(id) {
+  if (!confirm('Remove this client from the daily list?')) return;
+  await api('/clients/' + id, { method: 'DELETE' });
+  refreshClients();
+}
+window.deleteClient = deleteClient;
+
+async function refreshClients() {
+  const { clients } = await api('/clients');
+  const rows = clients.map((c) => `
+    <tr>
+      <td>${escapeHtml(c.EmployeeName)}</td>
+      <td>${escapeHtml(c.Company)}</td>
+      <td>${escapeHtml(c.Phone)}</td>
+      <td>${escapeHtml(c.Email)}</td>
+      <td>${escapeHtml(c.Subject)}</td>
+      <td><button class="red" onclick="deleteClient('${c.id}')">Remove</button></td>
+    </tr>`).join('');
+
+  document.getElementById('clientsTableWrap').innerHTML = clients.length ? `
+    <table><thead><tr><th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Subject</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <p class="muted">${clients.length} saved client(s) — this whole list reloads into the queue every day at the auto-start time.</p>
+  ` : '<p class="muted">No saved clients yet. Add some above.</p>';
 }
 
 document.getElementById('saveAuthBtn').onclick = async () => {

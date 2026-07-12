@@ -5,6 +5,7 @@ const xlsx = require('xlsx');
 const path = require('path');
 const { db, log } = require('./src/db');
 const { startWorkerLoop } = require('./src/worker');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -24,6 +25,70 @@ app.use('/api', (req, res, next) => {
 
 /* ---- health check (no auth, useful for Render) ---- */
 app.get('/healthz', (req, res) => res.send('ok'));
+
+/* ---- saved clients (persistent list, reused every day at auto-start time) ---- */
+app.get('/api/clients', (req, res) => {
+  res.json({ clients: db.get('savedClients').value() });
+});
+
+app.post('/api/clients', (req, res) => {
+  const { EmployeeName, Company, Phone, Email, Subject } = req.body || {};
+  if (!EmployeeName || !String(EmployeeName).trim()) {
+    return res.status(400).json({ error: 'EmployeeName is required.' });
+  }
+  const client = {
+    id: uuidv4(),
+    EmployeeName: String(EmployeeName).trim(),
+    Company: Company || '',
+    Phone: Phone || '',
+    Email: Email || '',
+    Subject: Subject || 'Test'
+  };
+  db.get('savedClients').push(client).write();
+  log('info', `Added saved client "${client.EmployeeName}" to the daily list.`);
+  res.json({ ok: true, client });
+});
+
+app.put('/api/clients/:id', (req, res) => {
+  const { id } = req.params;
+  const existing = db.get('savedClients').find({ id }).value();
+  if (!existing) return res.status(404).json({ error: 'Client not found.' });
+
+  const { EmployeeName, Company, Phone, Email, Subject } = req.body || {};
+  if (EmployeeName !== undefined && !String(EmployeeName).trim()) {
+    return res.status(400).json({ error: 'EmployeeName cannot be empty.' });
+  }
+  db.get('savedClients').find({ id }).assign({
+    ...(EmployeeName !== undefined && { EmployeeName: String(EmployeeName).trim() }),
+    ...(Company !== undefined && { Company }),
+    ...(Phone !== undefined && { Phone }),
+    ...(Email !== undefined && { Email }),
+    ...(Subject !== undefined && { Subject })
+  }).write();
+  log('info', `Updated saved client "${existing.EmployeeName}".`);
+  res.json({ ok: true });
+});
+
+app.delete('/api/clients/:id', (req, res) => {
+  const { id } = req.params;
+  const existing = db.get('savedClients').find({ id }).value();
+  if (!existing) return res.status(404).json({ error: 'Client not found.' });
+  db.get('savedClients').remove({ id }).write();
+  log('info', `Removed saved client "${existing.EmployeeName}" from the daily list.`);
+  res.json({ ok: true });
+});
+
+// Manually copy the saved client list into the queue and start immediately
+// (useful for testing the daily list without waiting for the 10am trigger).
+app.post('/api/clients/run-now', (req, res) => {
+  const clients = db.get('savedClients').value();
+  if (!clients.length) return res.status(400).json({ error: 'Saved client list is empty.' });
+  db.set('queue', JSON.parse(JSON.stringify(clients))).write();
+  db.set('settings.running', true).write();
+  db.set('settings.nextRunAt', 0).write();
+  log('info', `Manually started a run with ${clients.length} saved client(s).`);
+  res.json({ ok: true, count: clients.length });
+});
 
 /* ---- queue ---- */
 app.get('/api/queue', (req, res) => {
@@ -107,7 +172,7 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.post('/api/settings', (req, res) => {
-  const { gapMinutes, username, password, cookiesJson, subjectMapping } = req.body;
+  const { gapMinutes, username, password, cookiesJson, subjectMapping, autoStart, timezoneOffsetMinutes } = req.body;
   if (gapMinutes !== undefined) db.set('settings.gapMinutes', parseInt(gapMinutes, 10) || 5).write();
   if (username !== undefined) db.set('settings.username', username).write();
   if (password) db.set('settings.password', password).write();
@@ -116,6 +181,15 @@ app.post('/api/settings', (req, res) => {
     db.set('settings.cookiesUpdatedAt', Date.now()).write();
   }
   if (subjectMapping !== undefined) db.set('settings.subjectMapping', subjectMapping).write();
+  if (autoStart !== undefined) {
+    const enabled = !!autoStart.enabled;
+    const hour = Math.min(23, Math.max(0, parseInt(autoStart.hour, 10) || 0));
+    const minute = Math.min(59, Math.max(0, parseInt(autoStart.minute, 10) || 0));
+    db.set('settings.autoStart', { enabled, hour, minute }).write();
+  }
+  if (timezoneOffsetMinutes !== undefined) {
+    db.set('settings.timezoneOffsetMinutes', parseInt(timezoneOffsetMinutes, 10) || 330).write();
+  }
   log('info', 'Settings updated from dashboard.');
   res.json({ ok: true });
 });

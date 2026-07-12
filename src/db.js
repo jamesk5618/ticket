@@ -10,7 +10,8 @@ const adapter = new FileSync(path.join(DATA_DIR, 'db.json'));
 const db = low(adapter);
 
 db.defaults({
-  queue: [],          // pending employees to process
+  queue: [],          // pending employees to process (drains as it runs)
+  savedClients: [],   // persistent manually-added client list, reused every day
   logs: [],           // execution log entries
   settings: {
     running: false,
@@ -20,6 +21,15 @@ db.defaults({
     cookiesUpdatedAt: process.env.EAZY_COOKIES_JSON ? Date.now() : 0,
     username: process.env.EAZY_USERNAME || '',
     password: process.env.EAZY_PASSWORD || '',
+    // Daily auto-start: every day at this local time, the savedClients list
+    // is copied into the queue and the run starts automatically.
+    autoStart: {
+      enabled: true,
+      hour: 10,     // 24h, local to timezoneOffsetMinutes below
+      minute: 0
+    },
+    timezoneOffsetMinutes: 330, // IST (UTC+5:30) — change if deploying for another timezone
+    lastAutoRunDate: '',        // 'YYYY-MM-DD' (in the above timezone) of the last auto-start, prevents re-triggering same day
     subjectMapping: {
       'Login Issue': { category: 'Login Issue', rca: 'Restart App' },
       'Distributor Mapping Issue': { category: 'Route Management Issue', rca: 'Ask Mis Admin' },

@@ -24,14 +24,46 @@
 
   <main>
     <section class="card">
-      <h2>1. Upload Employee List</h2>
-      <p class="muted">CSV or Excel (.xlsx). Needs a column for Employee Name; optional Company/Brand, Phone, Email, Subject.</p>
+      <h2>1. Saved Clients — runs automatically every day</h2>
+      <p class="muted">Add clients here once. Every day at the time set below, this whole list is loaded into the queue and the run starts by itself — no upload needed. Editing this list does not affect a run already in progress.</p>
+
+      <div class="row">
+        <label>Daily start time (24h):
+          <input id="autoHour" type="number" min="0" max="23" value="10" style="width:60px" />
+          :
+          <input id="autoMinute" type="number" min="0" max="59" value="0" style="width:60px" />
+        </label>
+        <label><input type="checkbox" id="autoEnabled" checked /> Enabled</label>
+        <button id="saveAutoStartBtn">Save Time</button>
+        <span id="autoStartStatus" class="muted"></span>
+      </div>
+
+      <hr style="border-color:#334155;margin:14px 0" />
+
+      <div class="row">
+        <input id="cName" type="text" placeholder="Employee Name *" style="flex:1;min-width:140px" />
+        <input id="cCompany" type="text" placeholder="Company / Brand" style="flex:1;min-width:140px" />
+        <input id="cPhone" type="text" placeholder="Phone" style="flex:1;min-width:100px" />
+        <input id="cEmail" type="text" placeholder="Email" style="flex:1;min-width:140px" />
+        <select id="cSubject" style="flex:1;min-width:140px"></select>
+        <button id="addClientBtn" class="green">Add</button>
+      </div>
+      <div id="clientsTableWrap"></div>
+      <div class="row">
+        <button id="runNowBtn" class="green">Run Saved List Now</button>
+        <span class="muted">(for testing — otherwise it starts by itself at the time above)</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. One-off Upload (optional)</h2>
+      <p class="muted">CSV or Excel (.xlsx) upload replaces the current queue for a one-time run — separate from the daily Saved Clients list above.</p>
       <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
       <div id="uploadResult" class="muted"></div>
     </section>
 
     <section class="card">
-      <h2>2. Queue</h2>
+      <h2>4. Queue</h2>
       <div class="row">
         <label>Gap between tickets (minutes): <input id="gapMinutes" type="number" min="1" value="5" style="width:70px" /></label>
         <button id="saveGapBtn">Save</button>
@@ -46,7 +78,7 @@
     </section>
 
     <section class="card">
-      <h2>3. Live Logs</h2>
+      <h2>5. Live Logs</h2>
       <div class="row">
         <button id="refreshLogsBtn">Refresh</button>
         <button id="clearLogsBtn" class="red">Clear Logs</button>
@@ -56,7 +88,7 @@
     </section>
 
     <section class="card">
-      <h2>4. Login Settings</h2>
+      <h2>6. Login Settings</h2>
       <p class="muted">The automation runs headless on the server (no visible browser), so it authenticates using session cookies exported from your own browser. Paste fresh cookies here whenever your session expires. Username/password is a fallback for sites without 2FA — leave it set as a backup.</p>
       <div class="row"><label>Username: <input id="username" type="text" /></label></div>
       <div class="row"><label>Password: <input id="password" type="password" placeholder="(unchanged unless filled)" /></label></div>
