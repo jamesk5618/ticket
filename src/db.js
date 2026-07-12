@@ -5,6 +5,15 @@ const fs = require('fs');
 let createClient = null;
 try {
   ({ createClient } = require('@supabase/supabase-js'));
+  // supabase-js v2's realtime client unconditionally checks for a native
+  // WebSocket global at construction time (Node 22+ has one built in). The
+  // Playwright base Docker image we deploy on ships Node 20, which doesn't,
+  // so createClient() throws immediately even though we only ever use REST
+  // calls (select/upsert) and never touch realtime. Polyfilling with `ws`
+  // satisfies that check without changing any actual behavior we rely on.
+  if (typeof globalThis.WebSocket === 'undefined') {
+    globalThis.WebSocket = require('ws');
+  }
 } catch (err) {
   createClient = null; // package not installed — fine, falls back to local file
 }
