@@ -13,6 +13,18 @@ const LOGIN_USERNAME_SELECTOR = process.env.LOGIN_USERNAME_SELECTOR || '#usernam
 const LOGIN_PASSWORD_SELECTOR = process.env.LOGIN_PASSWORD_SELECTOR || '#password';
 const LOGIN_SUBMIT_SELECTOR = process.env.LOGIN_SUBMIT_SELECTOR || 'button[type=submit]';
 
+// The exact "Sign in with Google" button/link markup varies by site. These
+// are reasonable guesses tried in order; if none match, set
+// GOOGLE_BUTTON_SELECTOR in .env to the real one (right-click the button on
+// the login page -> Inspect -> Copy selector).
+const GOOGLE_BUTTON_SELECTORS = [
+  process.env.GOOGLE_BUTTON_SELECTOR,
+  'a[href*="accounts.google.com"]',
+  'a:has-text("Google")',
+  'button:has-text("Google")',
+  '[class*="google" i]'
+].filter(Boolean);
+
 // Kept only for local/backwards compatibility. No longer required for
 // login — cookies are the primary auth path since Render containers have
 // no display for a manual, visible-Chrome login.
@@ -96,9 +108,79 @@ async function applyCookies(context) {
   return true;
 }
 
-// Scripted username/password login, used only when cookies are absent or
-// stale. Selectors are configurable via env vars since they depend on the
-// site's real login form markup.
+// Clicks a "Sign in with Google" button/link if one is found on the current
+// page. Returns true if something was clicked (not whether login actually
+// succeeded — caller checks that separately).
+async function clickGoogleButton(page) {
+  for (const sel of GOOGLE_BUTTON_SELECTORS) {
+    const el = await page.$(sel).catch(() => null);
+    if (el) {
+      log('info', `Clicking "Sign in with Google" (matched selector: ${sel})`);
+      await el.click().catch(() => {});
+      return true;
+    }
+  }
+  return false;
+}
+
+// The self-healing trick: EazyBusiness's own session cookie expires often,
+// but the GOOGLE session cookies captured during the one-time "npm run
+// login" (and re-saved here after every successful login — see
+// persistFreshCookies below) last much longer. When EazyBusiness logs us
+// out, revisiting its login page and clicking "Sign in with Google" again
+// lets Google recognize its own still-valid session cookie already loaded
+// into this browser context and silently redirect straight through — no
+// password, no 2FA, no human needed — exactly like staying signed into
+// Gmail on a browser and having every Google-linked site auto-log-you-in.
+// This only fails once Google's OWN session eventually expires too (which
+// happens far less often), at which point login() falls through to the
+// password fallback and finally a clear error telling you to log in by hand
+// once via "npm run login".
+async function googleSilentReauth(page) {
+  await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' }).catch(() => {});
+
+  const clicked = await clickGoogleButton(page);
+  if (!clicked) {
+    log('warn', 'Silent Google re-auth: no "Sign in with Google" button found on the login page ' +
+      '(set GOOGLE_BUTTON_SELECTOR in env if the site\'s markup differs from the built-in guesses).');
+    return false;
+  }
+
+  // The Google OAuth step can either redirect the same tab or open a popup,
+  // depending on how the site implements it — handle both.
+  const popup = await page.context().waitForEvent('page', { timeout: 3000 }).catch(() => null);
+  if (popup) {
+    await popup.waitForLoadState('domcontentloaded').catch(() => {});
+    await wait(2500);
+    await popup.close().catch(() => {});
+  }
+
+  await wait(2500);
+  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  return isLoggedIn(page);
+}
+
+// After any successful login (silent Google re-auth or password), capture
+// the browser's current cookies — INCLUDING Google's own domain cookies,
+// not just EazyBusiness's — and save them back to storage. This is what
+// makes the self-healing loop durable across server restarts/redeploys: a
+// brand-new headless context on a fresh boot still has Google's session
+// available to retry this same trick, not just whatever was captured once
+// during the original manual login.
+async function persistFreshCookies(context) {
+  try {
+    const cookies = await context.cookies();
+    const relevant = cookies.filter(
+      (c) => c.domain && (c.domain.replace(/^\./, '').includes('eazybusiness.in') || c.domain.replace(/^\./, '').includes('google.com'))
+    );
+    db.set('settings.cookiesJson', JSON.stringify(relevant)).write();
+    db.set('settings.cookiesUpdatedAt', Date.now()).write();
+    cookiesAppliedAt = Date.now(); // we already have these applied in this context; avoid a redundant re-apply on the next getContext() call
+    log('info', `Saved ${relevant.length} refreshed cookie(s) (EazyBusiness + Google session) for future runs.`);
+  } catch (err) {
+    log('warn', `Could not persist refreshed cookies: ${err.message}`);
+  }
+}
 async function passwordLogin(page) {
   const settings = db.get('settings').value();
   const { username, password } = settings;
@@ -128,18 +210,31 @@ async function login(page) {
   }
 
   // Cookies were applied to the context before this page navigated (see
-  // getContext), so if we're here they were either absent or stale. Try a
-  // scripted username/password login as a fallback.
-  if (await passwordLogin(page)) {
-    log('success', 'Logged in via username/password.');
+  // getContext), so if we're here they were either absent or the
+  // EazyBusiness session specifically has expired. Try the silent Google
+  // re-auth trick first — it needs no human interaction as long as
+  // Google's own session cookie (saved during "npm run login" and kept
+  // fresh by persistFreshCookies) is still valid.
+  if (await googleSilentReauth(page)) {
+    log('success', 'Silently re-authenticated via Google using the saved session — no manual login needed.');
+    await persistFreshCookies(page.context());
     return true;
   }
 
-  log('error', 'Not logged in — no valid cookies and username/password login failed or was not configured.');
+  // Fallback: scripted username/password, only useful if EAZY_USERNAME /
+  // EAZY_PASSWORD are set and the site ever supports non-SSO login.
+  if (await passwordLogin(page)) {
+    log('success', 'Logged in via username/password.');
+    await persistFreshCookies(page.context());
+    return true;
+  }
+
+  log('error', 'Not logged in — silent Google re-auth and username/password login both failed or were not available.');
   throw new Error(
-    'Not logged in. Open the dashboard → "Login Settings", export fresh session cookies from your own ' +
-    'browser (DevTools → Application → Cookies → export as JSON, e.g. via the "Cookie-Editor" extension) ' +
-    'and paste them into "Session Cookies", or set Username/Password if the site supports plain login.'
+    'Not logged in. This usually means the saved GOOGLE session itself has finally expired (rare — ' +
+    'happens after weeks/months, a password change, or "sign out everywhere"), not just the EazyBusiness ' +
+    'cookie. Run "npm run login" once locally (log in via Google) to restore it — after that, this server ' +
+    'will keep re-authenticating itself automatically again for a long while.'
   );
 }
 
